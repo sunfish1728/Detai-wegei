@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>偉哲跑酷</title>
+<style>
+  :root {
+    --yellow: #ffd23f;
+    --pink: #ff3d7f;
+    --blue: #2bb3ff;
+    --ink: #1b1b2f;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; height: 100%; overflow: hidden; background: #87c9ff;
+    font-family: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
+    color: #fff; user-select: none; -webkit-user-select: none; touch-action: none;
+  }
+  #game { position: fixed; inset: 0; display: block; width: 100%; height: 100%; }
+
+  .hud { position: fixed; inset: 0; pointer-events: none; display: none; }
+  .hud.show { display: block; }
+  .hud .top { position: absolute; top: max(12px, env(safe-area-inset-top)); left: 16px; right: 16px;
+    display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+  .pill { background: rgba(20, 20, 40, .55); border-radius: 999px; padding: 6px 14px;
+    font-weight: 900; font-size: 20px; text-shadow: 0 2px 0 rgba(0,0,0,.4); white-space: nowrap; }
+  .coins { color: var(--yellow); }
+  .mult { background: var(--pink); }
+  .right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+  .score { font-size: 28px; }
+  .btn-icon { pointer-events: auto; border: 0; background: rgba(20,20,40,.55); color: #fff; font-size: 20px;
+    width: 42px; height: 42px; border-radius: 50%; cursor: pointer; }
+  .powers { position: absolute; left: 16px; bottom: max(16px, env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 6px; }
+  .power { display: flex; align-items: center; gap: 8px; background: rgba(20,20,40,.55); border-radius: 12px; padding: 4px 10px 4px 6px; }
+  .power .ic { font-size: 22px; }
+  .power .bar { width: 90px; height: 8px; border-radius: 4px; background: rgba(255,255,255,.25); overflow: hidden; }
+  .power .bar i { display: block; height: 100%; background: var(--yellow); }
+  .toast { position: absolute; top: 28%; left: 0; right: 0; text-align: center; font-size: 34px; font-weight: 900;
+    color: var(--yellow); text-shadow: 0 3px 0 var(--ink), 0 0 12px rgba(0,0,0,.4); opacity: 0; transition: opacity .25s; }
+  .toast.show { opacity: 1; }
+
+  .screen { position: fixed; inset: 0; display: none; align-items: center; justify-content: center;
+    background: radial-gradient(ellipse at center, rgba(20,10,60,.55), rgba(10,5,30,.85)); padding: 16px; overflow-y: auto; }
+  .screen.show { display: flex; }
+  .panel { width: min(760px, 100%); text-align: center; margin: auto; }
+  h1 { margin: 0 0 4px; font-size: clamp(40px, 9vw, 76px); line-height: 1; font-weight: 900; letter-spacing: 2px;
+    color: var(--yellow); text-shadow: 0 4px 0 var(--pink), 0 8px 0 var(--ink); transform: rotate(-3deg); }
+  .sub { margin: 14px 0 18px; font-size: 15px; opacity: .85; }
+  .cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 18px; }
+  @media (max-width: 560px) { .cards { grid-template-columns: repeat(2, 1fr); } }
+  .card { pointer-events: auto; cursor: pointer; border: 3px solid transparent; border-radius: 16px; padding: 8px 6px 10px;
+    background: linear-gradient(180deg, rgba(255,255,255,.18), rgba(255,255,255,.06)); color: #fff; font: inherit; }
+  .card img { width: 100%; height: 120px; object-fit: contain; display: block; filter: drop-shadow(0 4px 4px rgba(0,0,0,.4)); }
+  .card b { display: block; font-size: 17px; margin-top: 6px; }
+  .card small { display: block; opacity: .75; font-size: 12px; margin-top: 2px; }
+  .card.sel { border-color: var(--yellow); background: linear-gradient(180deg, rgba(255,210,63,.35), rgba(255,61,127,.2)); transform: translateY(-3px); }
+  .btn { pointer-events: auto; cursor: pointer; border: 0; border-radius: 999px; padding: 14px 40px; margin: 6px;
+    font: inherit; font-size: 22px; font-weight: 900; color: var(--ink); background: var(--yellow);
+    box-shadow: 0 5px 0 #c99a00; }
+  .btn:active { transform: translateY(3px); box-shadow: 0 2px 0 #c99a00; }
+  .btn.alt { background: var(--blue); box-shadow: 0 5px 0 #1478b0; color: #fff; }
+  .help { margin-top: 16px; font-size: 13px; opacity: .8; line-height: 1.8; }
+  kbd { background: rgba(255,255,255,.2); border-radius: 4px; padding: 1px 6px; font-family: inherit; }
+  .big { font-size: 56px; font-weight: 900; color: var(--yellow); text-shadow: 0 4px 0 var(--ink); margin: 4px 0; }
+  .stats { display: flex; justify-content: center; gap: 24px; margin: 8px 0 18px; font-size: 18px; }
+  .stats div span { display: block; font-size: 26px; font-weight: 900; }
+  .over-img { width: 160px; height: 160px; object-fit: contain; filter: drop-shadow(0 6px 6px rgba(0,0,0,.5)); transform: rotate(-8deg); }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div class="hud" id="hud">
+  <div class="top">
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="btn-icon" id="pauseBtn" aria-label="暫停">⏸</button>
+      <div class="pill coins">🪙 <span id="coinTxt">0</span></div>
+    </div>
+    <div class="right">
+      <div class="pill score" id="scoreTxt">0</div>
+      <div class="pill mult" id="multTxt">x1</div>
+    </div>
+  </div>
+  <div class="powers" id="powers"></div>
+  <div class="toast" id="toast"></div>
+</div>
+
+<div class="screen show" id="menu">
+  <div class="panel">
+    <h1>偉哲跑酷</h1>
+    <div class="sub">偉哲在鐵軌上塗鴉被抓包了！快跑！</div>
+    <div class="cards" id="cards"></div>
+    <button class="btn" id="startBtn">開始跑！</button>
+    <div class="help">
+      電腦：<kbd>←</kbd><kbd>→</kbd> 換軌道　<kbd>↑</kbd>/<kbd>空白</kbd> 跳　<kbd>↓</kbd> 滾　<kbd>P</kbd> 暫停<br>
+      手機：左右滑換軌道、上滑跳、下滑滾<br>
+      最高分：<b id="bestTxt">0</b>
+    </div>
+  </div>
+</div>
+
+<div class="screen" id="pauseScreen">
+  <div class="panel">
+    <h1>暫停</h1>
+    <div style="height:24px"></div>
+    <button class="btn" id="resumeBtn">繼續</button>
+    <button class="btn alt" id="quitBtn">回主選單</button>
+    <div class="help"><button class="btn-icon" id="muteBtn" aria-label="音效">🔊</button></div>
+  </div>
+</div>
+
+<div class="screen" id="overScreen">
+  <div class="panel">
+    <img class="over-img" id="overImg" alt="">
+    <h1 id="overTitle">被抓到了！</h1>
+    <div class="big" id="overScore">0</div>
+    <div class="stats">
+      <div>金幣<span id="overCoins">0</span></div>
+      <div>最高分<span id="overBest">0</span></div>
+    </div>
+    <button class="btn" id="againBtn">再跑一次</button>
+    <button class="btn alt" id="menuBtn">換角色</button>
+  </div>
+</div>
+
+<script src="js/three.min.js"></script>
+<script src="js/assets.js"></script>
+<script src="js/game.js"></script>
+</body>
+</html>
